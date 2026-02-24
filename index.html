@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Certificados - Codelco Concentradora</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/dist/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; padding-bottom: 90px; }
+        .header-app { background: #1a2a3a; color: white; padding: 1.5rem 0; text-align: center; margin-bottom: 1.5rem; }
+        .card-nav { cursor: pointer; border-radius: 12px; background: white; padding: 15px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #dee2e6; transition: 0.2s; }
+        .card-nav:hover { background-color: #f1f3f5; }
+        .card-nav:active { transform: scale(0.98); }
+        .hidden { display: none !important; }
+        .table-container { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #dee2e6; width: 95%; max-width: 800px; margin: 0 auto; }
+        .btn-back-float { position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px; border-radius: 50%; background: #0d6efd; color: white; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1000; }
+        .link-text { font-size: 0.85rem; display: block; color: #0d6efd; text-decoration: underline; margin-top: 4px; font-weight: bold; }
+        .badge { font-size: 0.75rem; padding: 6px 10px; }
+    </style>
+</head>
+<body>
+
+<header class="header-app shadow">
+    <h1 class="fw-bold m-0">Gestión de Certificados</h1>
+    <small id="status-text">Cargando base de datos...</small>
+</header>
+
+<div class="container-fluid">
+    <div id="vistaEquipos" class="row justify-content-center">
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Sincronizando con CertificadosCH23.csv...</p>
+        </div>
+    </div>
+
+    <div id="vistaCertificados" class="hidden">
+        <h3 id="tituloEquipo" class="text-center mb-4 fw-bold text-primary"></h3>
+        <div class="table-container shadow-sm">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="text-align: left; padding-left: 20px;">Componente</th>
+                        <th>Doc.</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaSectores"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<button id="btnVolver" class="btn-back-float hidden" onclick="mostrarEquipos()">
+    <i class="bi bi-arrow-left" style="font-size: 1.5rem;"></i>
+</button>
+
+<script>
+    // Nombre exacto de tu archivo en GitHub
+    const DATOS_URL = 'CertificadosCH23.csv';
+
+    let baseDeDatos = {};
+
+    async function cargarDatos() {
+        try {
+            // Agregamos un parámetro de tiempo para evitar que el navegador use datos viejos
+            const response = await fetch(DATOS_URL + '?t=' + new Date().getTime());
+            if (!response.ok) throw new Error('No se encontró el archivo CSV');
+            const data = await response.text();
+            procesarCSV(data);
+            document.getElementById('status-text').innerText = "Sistema Online";
+        } catch (e) {
+            document.getElementById('vistaEquipos').innerHTML = `
+                <div class="alert alert-danger text-center m-4 shadow">
+                    <i class="bi bi-exclamation-octagon-fill" style="font-size: 2rem;"></i><br>
+                    <h5 class="mt-2">Error de Conexión</h5>
+                    <p>No se pudo cargar el archivo: <b>${DATOS_URL}</b></p>
+                    <small>Verifica que el nombre del archivo en GitHub sea idéntico y que esté en la misma carpeta que este index.html.</small>
+                </div>`;
+        }
+    }
+
+    function procesarCSV(texto) {
+        const lineas = texto.split(/\r?\n/);
+        baseDeDatos = {};
+        
+        // Saltamos la primera línea (cabecera: Equipo, Seccion, Componente, Link)
+        for (let i = 1; i < lineas.length; i++) {
+            if (!lineas[i].trim()) continue;
+            
+            // Separar por comas, respetando comas dentro de comillas si las hay
+            const columnas = lineas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            
+            if (columnas.length >= 3) {
+                const equipo = columnas[0].replace(/"/g, '').trim();
+                const componente = columnas[2].replace(/"/g, '').trim();
+                const link = columnas[3] ? columnas[3].replace(/"/g, '').trim() : "";
+
+                if (equipo && componente) {
+                    if (!baseDeDatos[equipo]) baseDeDatos[equipo] = [];
+                    baseDeDatos[equipo].push({ nombre: componente, url: link });
+                }
+            }
+        }
+        renderizarEquipos();
+    }
+
+    function renderizarEquipos() {
+        const contenedor = document.getElementById('vistaEquipos');
+        contenedor.innerHTML = "";
+        const equiposUnicos = Object.keys(baseDeDatos).sort();
+
+        if (equiposUnicos.length === 0) {
+            contenedor.innerHTML = "<div class='text-center mt-5'><p class='text-muted'>El archivo CSV está vacío o tiene un formato incorrecto.</p></div>";
+            return;
+        }
+
+        equiposUnicos.forEach(equipo => {
+            contenedor.innerHTML += `
+                <div class="col-12" style="max-width:600px">
+                    <div class="card card-nav shadow-sm mb-2" onclick="mostrarSectores('${equipo}')">
+                        <h5 class="m-0 fw-bold text-dark">${equipo}</h5>
+                        <i class="bi bi-chevron-right text-primary"></i>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function mostrarSectores(idEquipo) {
+        document.getElementById('vistaEquipos').classList.add('hidden');
+        document.getElementById('vistaCertificados').classList.remove('hidden');
+        document.getElementById('btnVolver').classList.remove('hidden');
+        document.getElementById('tituloEquipo').innerText = idEquipo;
+
+        const tabla = document.getElementById('tablaSectores');
+        tabla.innerHTML = "";
+
+        baseDeDatos[idEquipo].forEach((s) => {
+            // Lógica: Es vigente si el link empieza con http
+            const tieneLink = s.url !== "" && s.url.toLowerCase().startsWith('http');
+            
+            tabla.innerHTML += `
+                <tr>
+                    <td style="text-align: left; padding-left: 20px;">
+                        <span class="fw-bold d-block text-dark">${s.nombre}</span>
+                        ${tieneLink ? `<a href="${s.url}" target="_blank" class="link-text">Ver en Canva <i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    </td>
+                    <td>
+                        <i class="bi ${tieneLink ? 'bi-file-earmark-check-fill text-primary' : 'bi-file-earmark-x text-muted'}" style="font-size: 1.6rem;"></i>
+                    </td>
+                    <td>
+                        <span class="badge ${tieneLink ? 'bg-success' : 'bg-danger'} shadow-sm">
+                            ${tieneLink ? 'Vigente' : 'No Vigente'}
+                        </span>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    function mostrarEquipos() {
+        document.getElementById('vistaEquipos').classList.remove('hidden');
+        document.getElementById('vistaCertificados').classList.add('hidden');
+        document.getElementById('btnVolver').classList.add('hidden');
+    }
+
+    // Iniciar carga
+    cargarDatos();
+</script>
+</body>
+</html>
