@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Certificados - Codelco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/dist/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --codelco-orange: #FF6B00;
+            --codelco-dark: #1a2a3a;
+            --bg-light: #f4f7f9;
+        }
+        body { 
+            background-color: var(--bg-light); 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0;
+            padding-bottom: 120px;
+        }
+        /* Header Naranjo Centrado */
+        .header-app { 
+            background: linear-gradient(135deg, var(--codelco-orange) 0%, #e65100 100%);
+            color: white; 
+            padding: 2.5rem 1rem; 
+            text-align: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            width: 100%;
+        }
+        /* Contenedor Principal Centrado */
+        .main-content {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .w-full { width: 100%; }
+
+        /* Títulos de instrucción */
+        .instruccion-txt {
+            font-weight: bold;
+            color: var(--codelco-dark);
+            margin-bottom: 20px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Tarjetas de navegación */
+        .card-nav { 
+            cursor: pointer; 
+            border-radius: 15px; 
+            background: white; 
+            padding: 18px 25px; 
+            margin-bottom: 12px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border: none; 
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            width: 100%;
+        }
+        .card-nav:hover { 
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .hidden { display: none !important; }
+        
+        /* Tabla Centrada y Estilizada */
+        .table-container { 
+            background: white; 
+            border-radius: 20px; 
+            overflow: hidden; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 100%;
+        }
+        .table thead { background-color: var(--codelco-dark); color: white; }
+        .table tbody td { padding: 15px 10px; }
+
+        /* Botón Volver Visible y Oscuro */
+        .btn-back-float { 
+            position: fixed; 
+            bottom: 30px; 
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 40px;
+            border-radius: 50px; 
+            background: var(--codelco-dark); 
+            color: white !important; 
+            border: 2px solid white; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3); 
+            z-index: 1000;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Breadcrumbs (Ruta de navegación) */
+        .breadcrumb-custom { 
+            background: white; 
+            padding: 12px 20px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            text-align: center;
+            width: 100%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            font-size: 0.9rem;
+        }
+        .badge { padding: 8px 12px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<header class="header-app">
+    <h1 class="fw-bold m-0">Gestión de Certificados</h1>
+    <h2 class="m-0 fs-5 mt-2 fw-bold text-uppercase">Puntos de anclaje</h2>
+    <p class="m-0 opacity-90 small mt-1">Chancado 2° y 3° - Codelco Chile</p>
+</header>
+
+<main class="main-content">
+    <div id="navBar" class="breadcrumb-custom hidden">
+        <span id="bc-seccion" class="text-primary fw-bold"></span>
+        <span id="bc-separador" class="text-muted hidden mx-2"> <i class="bi bi-chevron-right"></i> </span>
+        <span id="bc-equipo" class="text-dark fw-medium"></span>
+    </div>
+
+    <div id="instruccion" class="instruccion-txt">Seleccione Sección</div>
+
+    <div id="vistaSecciones" class="w-full">
+        <div class="text-center py-5">
+            <div class="spinner-border text-warning" role="status"></div>
+        </div>
+    </div>
+
+    <div id="vistaEquipos" class="w-full hidden"></div>
+
+    <div id="vistaCertificados" class="w-full hidden">
+        <div class="table-container">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding-left: 20px;">Sector</th>
+                        <th>Cert.</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaSectores"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<button id="btnVolver" class="btn-back-float hidden" onclick="retroceder()">
+    <i class="bi bi-arrow-left-circle-fill"></i> VOLVER
+</button>
+
+<script>
+    const DATOS_URL = 'CertificadosCH23.csv';
+    let estructuraDatos = {};
+    let pantallaActual = "secciones";
+    let seccionSeleccionada = "";
+
+    async function cargarDatos() {
+        try {
+            const response = await fetch(DATOS_URL + '?v=' + Date.now());
+            const data = await response.text();
+            procesarCSV(data);
+        } catch (e) {
+            document.getElementById('vistaSecciones').innerHTML = `<div class="alert alert-danger">Error cargando CertificadosCH23.csv</div>`;
+        }
+    }
+
+    function procesarCSV(texto) {
+        const lineas = texto.split(/\r?\n/);
+        estructuraDatos = {};
+        for (let i = 1; i < lineas.length; i++) {
+            if (!lineas[i].trim()) continue;
+            const col = lineas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            if (col.length >= 4) {
+                const equipo = col[0].replace(/"/g, '').trim();
+                const seccion = col[1].replace(/"/g, '').trim();
+                const sector = col[2].replace(/"/g, '').trim();
+                const link = col[3] ? col[3].replace(/"/g, '').trim() : "";
+                if (!estructuraDatos[seccion]) estructuraDatos[seccion] = {};
+                if (!estructuraDatos[seccion][equipo]) estructuraDatos[seccion][equipo] = [];
+                estructuraDatos[seccion][equipo].push({ nombre: sector, url: link });
+            }
+        }
+        renderizarSecciones();
+    }
+
+    function renderizarSecciones() {
+        pantallaActual = "secciones";
+        document.getElementById('instruccion').innerText = "Seleccione Sección";
+        const contenedor = document.getElementById('vistaSecciones');
+        contenedor.innerHTML = "";
+        
+        document.getElementById('navBar').classList.add('hidden');
+        document.getElementById('btnVolver').classList.add('hidden');
+        document.getElementById('vistaEquipos').classList.add('hidden');
+        document.getElementById('vistaCertificados').classList.add('hidden');
+        contenedor.classList.remove('hidden');
+
+        Object.keys(estructuraDatos).sort().forEach(sec => {
+            contenedor.innerHTML += `
+                <div class="card card-nav shadow-sm" onclick="mostrarEquipos('${sec}')">
+                    <span class="fs-5 fw-bold text-dark">${sec}</span>
+                    <i class="bi bi-arrow-right-circle-fill text-warning fs-4"></i>
+                </div>`;
+        });
+    }
+
+    function mostrarEquipos(sec) {
+        pantallaActual = "equipos";
+        seccionSeleccionada = sec;
+        document.getElementById('instruccion').innerText = "Seleccione Equipo";
+        const contenedor = document.getElementById('vistaEquipos');
+        contenedor.innerHTML = "";
+        
+        document.getElementById('vistaSecciones').classList.add('hidden');
+        document.getElementById('vistaCertificados').classList.add('hidden');
+        contenedor.classList.remove('hidden');
+        document.getElementById('btnVolver').classList.remove('hidden');
+        
+        document.getElementById('navBar').classList.remove('hidden');
+        document.getElementById('bc-seccion').innerText = sec;
+        document.getElementById('bc-separador').classList.add('hidden');
+        document.getElementById('bc-equipo').innerText = "";
+
+        Object.keys(estructuraDatos[sec]).sort().forEach(eq => {
+            contenedor.innerHTML += `
+                <div class="card card-nav shadow-sm" onclick="mostrarTabla('${eq}')">
+                    <span class="fw-medium text-dark">${eq}</span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </div>`;
+        });
+    }
+
+    function mostrarTabla(eq) {
+        pantallaActual = "tabla";
+        document.getElementById('instruccion').innerText = "Seleccione Sector";
+        document.getElementById('vistaEquipos').classList.add('hidden');
+        document.getElementById('vistaCertificados').classList.remove('hidden');
+        
+        document.getElementById('bc-separador').classList.remove('hidden');
+        document.getElementById('bc-equipo').innerText = eq;
+
+        const tabla = document.getElementById('tablaSectores');
+        tabla.innerHTML = "";
+
+        estructuraDatos[seccionSeleccionada][eq].forEach(comp => {
+            const tieneLink = comp.url.toLowerCase().startsWith('http');
+            tabla.innerHTML += `
+                <tr>
+                    <td style="text-align: left; padding-left: 20px;">
+                        <span class="fw-bold d-block text-dark">${comp.nombre}</span>
+                        ${tieneLink ? `<a href="${comp.url}" target="_blank" class="text-primary fw-bold small" style="text-decoration:none">Ver en Canva <i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    </td>
+                    <td><i class="bi ${tieneLink ? 'bi-file-earmark-check-fill text-primary' : 'bi-file-earmark-x text-muted'}" style="font-size: 1.5rem;"></i></td>
+                    <td><span class="badge ${tieneLink ? 'bg-success' : 'bg-danger'} shadow-sm">${tieneLink ? 'Vigente' : 'No Vigente'}</span></td>
+                </tr>`;
+        });
+    }
+
+    function retroceder() {
+        if (pantallaActual === "tabla") mostrarEquipos(seccionSeleccionada);
+        else if (pantallaActual === "equipos") renderizarSecciones();
+    }
+    cargarDatos();
+</script>
+</body>
+</html>
