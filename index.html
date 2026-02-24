@@ -75,22 +75,33 @@
             color: white;
         }
         /* Botón de volver flotante y centrado abajo */
+        /* Estilo del botón para que resalte */
         .btn-back-float { 
             position: fixed; 
             bottom: 30px; 
             left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 35px;
+            transform: translateX(-50%); /* Centrado horizontal perfecto */
+            padding: 12px 40px;
             border-radius: 50px; 
-            background: var(--codelco-dark); 
-            color: white; 
-            border: none; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4); 
+            background-color: #1a2a3a; /* Azul marino oscuro para visibilidad */
+            color: #ffffff !important; /* Blanco brillante para el texto */
+            border: 2px solid #ffffff; /* Borde sutil para despegarlo del fondo */
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4); /* Sombra para dar profundidad */
             z-index: 1000;
             font-weight: bold;
             display: flex;
             align-items: center;
             gap: 10px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Efecto al pasar el mouse o presionar */
+        .btn-back-float:hover {
+            background-color: #FF6B00; /* Cambia a naranja al tocarlo */
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
         /* Breadcrumbs centrados */
         .breadcrumb-custom { 
@@ -264,5 +275,6 @@
 </script>
 </body>
 </html>
+
 
 
